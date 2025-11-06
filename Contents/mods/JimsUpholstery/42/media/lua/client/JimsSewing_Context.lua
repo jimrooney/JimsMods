@@ -113,7 +113,6 @@ end
 -- This is the version that actually worked in your client: it calls the vanilla
 -- timed action, but tries every body part so we hit the one that really has the hole.
 function JimsSewing.fixHolesInstant(target, clothing, player)
-    -- our context menu calls with (nil, picked, player)
     if not clothing then
         print("[JimsSewing] fixHolesInstant: no clothing")
         return
@@ -124,14 +123,15 @@ function JimsSewing.fixHolesInstant(target, clothing, player)
         return
     end
 
-    if not clothing.getHolesNumber or clothing:getHolesNumber() <= 0 then
-        print("[JimsSewing] no holes to fix")
-        return
-    end
-
     local inv = player:getInventory()
     if not inv then
         print("[JimsSewing] no inventory")
+        return
+    end
+
+    -- if no holes at all, bail right away
+    if not clothing.getHolesNumber or clothing:getHolesNumber() <= 0 then
+        print("[JimsSewing] item has no holes, skipping")
         return
     end
 
@@ -145,8 +145,13 @@ function JimsSewing.fixHolesInstant(target, clothing, player)
     local guard = 20
 
     for i = 0, parts:size() - 1 do
-        if clothing:getHolesNumber() <= 0 then break end
-        if guard <= 0 then break end
+        -- check again inside the loop, so we stop after we’ve actually fixed it
+        if clothing:getHolesNumber() <= 0 then
+            break
+        end
+        if guard <= 0 then
+            break
+        end
         guard = guard - 1
 
         -- pick supplies fresh each time
@@ -178,9 +183,99 @@ function JimsSewing.fixHolesInstant(target, clothing, player)
     print(string.format("[JimsSewing] queued %d repair action(s) for %s", repairsQueued, tostring(clothing:getFullType())))
 end
 
+
+
+
+
+
+
 --------------------------------------------------------------------------------
--- Context menu hook
+-- Fully restore clothing
 --------------------------------------------------------------------------------
+-- fully restore clothing by replacing it with a fresh copy
+function JimsSewing.restoreClothing(target, clothing, player)
+    -- our menu will call with (nil, clothing, player)
+    if not clothing then
+        print("[JimsSewing] restoreClothing: no clothing")
+        return
+    end
+
+    player = player or getSpecificPlayer(0)
+    if not player then
+        print("[JimsSewing] restoreClothing: no player")
+        return
+    end
+
+    local inv = player:getInventory()
+    if not inv then
+        print("[JimsSewing] restoreClothing: player has no inventory")
+        return
+    end
+
+    local ft = clothing.getFullType and clothing:getFullType() or nil
+    if not ft or ft == "" then
+        print("[JimsSewing] restoreClothing: item has no full type")
+        return
+    end
+
+    -- remember if it was worn
+    local wasEquipped = clothing.isEquipped and clothing:isEquipped() or false
+
+    -- remember color/tint if present
+    local col = nil
+    if clothing.getColor then
+        col = clothing:getColor()
+    end
+
+    -- add a new clean item
+    local fresh = inv:AddItem(ft)
+    if not fresh then
+        print("[JimsSewing] restoreClothing: failed to add fresh item")
+        return
+    end
+
+    -- try to copy color back
+    if col and fresh.setColor then
+        fresh:setColor(col)
+    end
+
+    -- max condition, clean, dry
+    if fresh.setCondition and fresh.getConditionMax then
+        fresh:setCondition(fresh:getConditionMax())
+    end
+    if fresh.setBloodLevel then fresh:setBloodLevel(0) end
+    if fresh.setDirtyness then fresh:setDirtyness(0) end
+    if fresh.setWetness then fresh:setWetness(0) end
+
+    -- equip it back if it was worn
+    if wasEquipped and fresh.setWornItem then
+        -- B42 way: player:setWornItem(fresh)
+        pcall(function()
+            player:setWornItem(fresh:getBodyLocation(), fresh)
+        end)
+    elseif wasEquipped and fresh:isClothing() then
+        -- older pattern
+        pcall(function()
+            player:setClothingItem_Back(fresh)
+        end)
+    end
+
+    -- finally remove the old damaged one
+    inv:Remove(clothing)
+    print("[JimsSewing] restoreClothing: replaced " .. tostring(ft) .. " with fresh copy")
+end
+
+
+
+
+
+
+
+
+
+------------------------------------------------------------
+-- unwrap helper (unchanged)
+------------------------------------------------------------
 local function unwrapInventoryItem(entry)
     local item = entry
     while item and type(item) == "table" and item.items do
@@ -189,28 +284,49 @@ local function unwrapInventoryItem(entry)
     return item
 end
 
+------------------------------------------------------------
+-- context menu
+------------------------------------------------------------
 local function OnFillInventoryObjectContextMenu(playerArg, context, items)
+    -- HARD GUARDS
+    if context == nil then return end
+    if items == nil or #items == 0 then return end
+
     local player = normalizePlayer(playerArg)
-    if not player or not context or not items or #items == 0 then return end
+    if player == nil then return end
 
     local picked = unwrapInventoryItem(items[1])
-    if not picked then return end
-    if not picked.getHolesNumber or picked:getHolesNumber() <= 0 then return end
+    if picked == nil then return end
 
-    -- GATE: must be placed nearby, and NOT in inventory
+    -- must be clothing with holes (for the sewing option)
+    local holes = (picked.getHolesNumber and picked:getHolesNumber()) or 0
+
+    -- must have placed machine nearby
     if not machinePlacedNearbyNotInInventory(player) then return end
 
-    -- this is the option you were using
+    -- 1) your “instant repair” (vanilla TA over all parts)
+    if holes > 0 then
+        context:addOption(
+            getText("Repair (Fix Holes)"),
+            nil,
+            JimsSewing.fixHolesInstant,
+            picked,   -- clothing
+            player    -- player
+        )
+    end
+
+    -- 2) new “restore” option – we can allow this even without holes
     context:addOption(
-        getText("Instant Repair (Remove Holes)"),
-        nil,                     -- target (we don't care)
-        JimsSewing.fixHolesInstant,
-        picked,                  -- arg1 = clothing
-        player                   -- arg2 = player
+        getText("Restore (Make New)"),
+        nil,
+        JimsSewing.restoreClothing,
+        picked,
+        player
     )
 end
 
 Events.OnFillInventoryObjectContextMenu.Add(OnFillInventoryObjectContextMenu)
+
 
 -- reload confirmation
 local ts = os.date and os.date("%X") or "now"
