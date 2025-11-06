@@ -1,0 +1,8 @@
+sounditem sewing_machine
+{
+    category = Object
+    volume = 0.7
+    radius = 10
+    loop = TRUE
+    file = sewing_machine.ogg
+}

@@ -112,6 +112,60 @@ local function machinePlacedNearbyNotInInventory(player)
     return true
 end
 
+
+------------------------------------------------------------
+-- Universal Mood Boost + XP Gain for Sewing Machine Use
+------------------------------------------------------------
+function JimsSewing.improveMood(player)
+    if not player or player:isDead() then return end
+    local stats = player:getStats()
+    local body = player:getBodyDamage()
+
+    local tailoring = player:getPerkLevel(Perks.Tailoring)
+
+    -- scale 0.5×–2.0× depending on Tailoring level
+    local factor = 0.5 + (tailoring / 10) * 1.5
+
+    --------------------------------------------------------
+    -- 🧘 Mood Improvements
+    --------------------------------------------------------
+    local boredomDelta     = 8  * factor
+    local stressDelta      = 0.03 * factor
+    local unhappinessDelta = 4  * factor
+    local fatigueDelta     = 0.02 * factor
+
+    -- Apply changes (clamped)
+    if stats:getBoredom() > 0 then
+        stats:setBoredom(math.max(0, stats:getBoredom() - boredomDelta))
+    end
+    if stats:getStress() > 0 then
+        stats:setStress(math.max(0, stats:getStress() - stressDelta))
+    end
+    if body:getUnhappynessLevel() > 0 then
+        body:setUnhappynessLevel(math.max(0, body:getUnhappynessLevel() - unhappinessDelta))
+    end
+    stats:setFatigue(math.min(1.0, stats:getFatigue() + fatigueDelta))
+
+    --------------------------------------------------------
+    -- 🎓 XP Reward (tunable)
+    --------------------------------------------------------
+    local baseXP = 2.0   -- <<--- change this number to set XP per use
+    local xpGain = baseXP * factor
+    player:getXp():AddXP(Perks.Tailoring, xpGain)
+
+    --------------------------------------------------------
+    -- 🧾 Debug output
+    --------------------------------------------------------
+    if JimsSewing.settings.debug then
+        print(string.format(
+            "[JimsSewing] Mood+XP (Tailoring=%d, factor=%.2f): boredom -%.1f, stress -%.2f, unhappy -%.1f, fatigue +%.2f, XP +%.2f",
+            tailoring, factor, boredomDelta, stressDelta, unhappinessDelta, fatigueDelta, xpGain
+        ))
+    end
+end
+
+
+
 ------------------------------------------------------------
 -- (optional) hole dump – quieter when debug=false
 ------------------------------------------------------------
@@ -224,14 +278,16 @@ function JimsSewing.fixHolesInstant(_, clothing, player)
             dbg("skip clean part:", tostring(partObj))
         end
     end
-
+    
+    JimsSewing.improveMood(player)
+    
     print(string.format("[JimsSewing] queued %d repair action(s) for %s",
         repairsQueued,
         tostring(clothing:getFullType())))
 end
 
 ------------------------------------------------------------
--- restore clothing (same behavior as before)
+-- restore clothing (requires Tailoring ≥ 8)
 ------------------------------------------------------------
 function JimsSewing.restoreClothing(_, clothing, player)
     if not clothing then
@@ -242,6 +298,14 @@ function JimsSewing.restoreClothing(_, clothing, player)
     player = player or getSpecificPlayer(0)
     if not player then
         print("[JimsSewing] restoreClothing: no player")
+        return
+    end
+
+    -- Tailoring level requirement
+    local tailoring = player:getPerkLevel(Perks.Tailoring)
+    if tailoring < 8 then
+        player:Say(getText("IGUI_Tailoring_Level8Required") or "You need Tailoring level 8 to restore clothing.")
+        print(string.format("[JimsSewing] restoreClothing: blocked (Tailoring %d < 8)", tailoring))
         return
     end
 
@@ -288,8 +352,10 @@ function JimsSewing.restoreClothing(_, clothing, player)
     end
 
     inv:Remove(clothing)
-    print("[JimsSewing] restoreClothing: replaced " .. tostring(ft) .. " with fresh copy")
+    JimsSewing.improveMood(player)
+    print(string.format("[JimsSewing] restoreClothing: replaced %s with fresh copy (Tailoring %d)", tostring(ft), tailoring))
 end
+
 
 ------------------------------------------------------------
 -- unwrap helper
@@ -329,13 +395,34 @@ local function OnFillInventoryObjectContextMenu(playerArg, context, items)
         )
     end
 
-    context:addOption(
-        getText("Restore (Make New)"),
-        nil,
-        JimsSewing.restoreClothing,
-        picked,
-        player
+-- Add Restore option (always visible, but greyed out if Tailoring < 8)
+local restoreText = getText("Restore (Make New)")
+local restoreOption = context:addOption(restoreText, nil, JimsSewing.restoreClothing, picked, player)
+
+local tailoring = player:getPerkLevel(Perks.Tailoring)
+local tooltip = ISInventoryPaneContextMenu.addToolTip()
+tooltip.description = ""
+
+if tailoring < 8 then
+    -- greyed-out visual + tooltip
+    restoreOption.notAvailable = true
+    tooltip.description = string.format(
+        "%s <LINE>%s %d/8",
+        getText("IGUI_Tailoring_Level8Required") or "Requires Tailoring level 8",
+        getText("IGUI_perks_Tailoring") or "Tailoring:",
+        tailoring
     )
+else
+    tooltip.description = string.format(
+        "%s %d/10 <LINE>%s",
+        getText("IGUI_perks_Tailoring") or "Tailoring:",
+        tailoring,
+        getText("IGUI_Tailoring_CanFullyRestore") or "You have the skill to fully restore clothing."
+    )
+end
+
+restoreOption.toolTip = tooltip
+
 end
 
 Events.OnFillInventoryObjectContextMenu.Add(OnFillInventoryObjectContextMenu)
