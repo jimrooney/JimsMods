@@ -1,0 +1,81 @@
+module Base
+{
+    craftRecipe RagsToThread_Spinning
+    {
+        timedAction = Sew,
+        Time = 2,
+        Tags = SpinningWheel,
+        category = Tailoring,
+        SkillRequired = Tailoring:4,
+        xpAward = Tailoring:15,
+        inputs
+        {
+            item 1 [Base.RippedSheets],
+        }
+        outputs
+        {
+            item 10 Base.Thread,
+        }
+        OnCreate = Jim_MoodImprove,
+    }
+
+    craftRecipe RagsToThread_Portable
+    {
+        timedAction = Sew,
+        Time = 5,
+        Tags = AnySurfaceCraft,
+        category = Tailoring,
+        xpAward = Tailoring:5,
+        inputs
+        {
+            item 1 [Base.RippedSheets],
+            item 1 [Base.Jim_PortableSewingMachine] mode:keep,
+        }
+        outputs
+        {
+            item 5 Base.Thread,
+        }
+        OnCreate = Jim_MoodImprove,
+    }
+    craftRecipe RagsToSheets
+    {
+        timedAction = Sew,
+        Time = 3,
+        Tags = AnySurfaceCraft,
+        category = Tailoring,
+        xpAward = Tailoring:5,
+        inputs
+        {
+            item 3 [Base.RippedSheets],
+            item 1 [Base.Thread],
+            item 1 [Base.Jim_PortableSewingMachine] mode:keep,
+        }
+        outputs
+        {
+            item 1 Base.Sheet,
+        }
+        OnCreate = Jim_MoodImprove,
+    }
+    craftRecipe BuildSewingMachine
+    {
+        timedAction = Sew,
+        Time = 3,
+        Tags = InHandCraft;CanBeDoneFromFloor,
+        category = Tailoring,
+        xpAward = Tailoring:5,
+        inputs
+        {
+            item 1 [Base.RippedSheets],
+        }
+
+        outputs
+        {
+            item 1 Base.Jim_PortableSewingMachine,
+        }
+        OnCreate = Jim_MoodImprove,
+    }    
+
+}
+
+
+

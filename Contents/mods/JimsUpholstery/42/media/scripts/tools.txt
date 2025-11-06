@@ -1,0 +1,37 @@
+module Base
+{
+    item Jim_PortableSewingMachine
+    {
+        DisplayName = Portable Sewing Machine,
+        ObjectName = SewingMachine,
+        Type = Container,
+        Weight = 1.5,
+        Capacity = 5,
+        WeightReduction = 25,
+        CanStoreWater = FALSE,
+        OpenSound = DrawerOpen,
+        CloseSound = DrawerClose,
+        Icon = PortableSewingMachine,
+        Container = SewingKit,
+        BoredomChange = -10,
+        UnhappyChange = -5,
+        StressChange = -3,
+        UseDelta = 0.0,
+
+        CanBeDropped = TRUE,
+        CanBePlaced  = TRUE,
+        IsMoveAble   = TRUE,
+        PlaceWorldSprite = TRUE,
+        WorldStaticModel = Jim_PortableSewingMachine,
+    }
+
+    worldstaticmodel Jim_PortableSewingMachine
+    {
+        north = PortableSewingMachine_World_North,
+        east  = PortableSewingMachine_World_East,
+        south = PortableSewingMachine_World_South,
+        west  = PortableSewingMachine_World_West,
+
+        
+    }
+}

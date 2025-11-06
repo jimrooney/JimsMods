@@ -1,0 +1,41 @@
+# sewingmachine_01.tiles
+# Defines a 4-direction placeable sprite object (N, E, S, W)
+
+tileset sewingmachine_01
+{
+    # North-facing
+    tile 0
+    {
+        GroupName   = "PortableSewingMachine",
+        CustomName  = "Portable Sewing Machine",
+        Facing      = "N",
+        IsMoveAble  = true,
+    }
+
+    # East-facing
+    tile 1
+    {
+        GroupName   = "PortableSewingMachine",
+        CustomName  = "Portable Sewing Machine",
+        Facing      = "E",
+        IsMoveAble  = true,
+    }
+
+    # South-facing
+    tile 2
+    {
+        GroupName   = "PortableSewingMachine",
+        CustomName  = "Portable Sewing Machine",
+        Facing      = "S",
+        IsMoveAble  = true,
+    }
+
+    # West-facing
+    tile 3
+    {
+        GroupName   = "PortableSewingMachine",
+        CustomName  = "Portable Sewing Machine",
+        Facing      = "W",
+        IsMoveAble  = true,
+    }
+}

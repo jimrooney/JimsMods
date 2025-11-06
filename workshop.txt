@@ -1,0 +1,6 @@
+version=1
+id=3596047432
+title=Jims Mods
+description=Mods for me and my crew. Maybe others will find them useful some day, but they're very "beginnier modder" level.
+tags=Build 42
+visibility=public
