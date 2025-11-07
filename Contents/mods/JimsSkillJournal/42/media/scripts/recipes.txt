@@ -1,0 +1,17 @@
+module JimsStuff
+{
+    imports
+    {
+        Base
+    }
+
+    item SkillJournal
+    {
+        DisplayCategory   = Literature,
+        Type              = Normal,
+        DisplayName       = Skill Journal,
+        Icon              = Book,
+        Weight            = 0.2,
+        WorldStaticModel  = Book,
+    }
+}
