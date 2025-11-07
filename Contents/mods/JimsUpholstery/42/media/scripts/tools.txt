@@ -1,9 +1,5 @@
-module JimsStuff
+module Base
 {
-    imports
-    {
-        Base
-    }
     item Jim_PortableSewingMachine
     {
         DisplayName = Portable Sewing Machine,
