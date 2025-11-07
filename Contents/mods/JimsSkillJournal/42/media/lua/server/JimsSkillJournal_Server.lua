@@ -47,33 +47,43 @@ local function writeSkillsToJournal(playerObj, journal)
         return
     end
 
+    -- item moddata
     local mdItem = journal:getModData()
     mdItem.JSJ = mdItem.JSJ or {}
     mdItem.JSJ.skills = mdItem.JSJ.skills or {}
     mdItem.JSJ.fallbackApplied = {}
 
+    -- world moddata, keyed by journal ID
     local worldStore = getWorldStore()
     local jid = tostring(journal:getID())
     worldStore[jid] = worldStore[jid] or {}
     worldStore[jid].skills = worldStore[jid].skills or {}
     worldStore[jid].fallbackApplied = {}
 
+    -- capture skills, only if we actually improved them
     for _, perkName in ipairs(PERK_LIST) do
         local perkEnum = Perks[perkName]
         if perkEnum and xp.getXP then
             local current = xp:getXP(perkEnum)
             local prev = mdItem.JSJ.skills[perkName] or 0
+
             if current > prev then
+                -- item copy
                 mdItem.JSJ.skills[perkName] = current
                 mdItem.JSJ.fallbackApplied[perkName] = false
+                -- world copy
                 worldStore[jid].skills[perkName] = current
                 worldStore[jid].fallbackApplied[perkName] = false
+
                 print(string.format("[JSJ] wrote %s = %.2f", perkName, current))
             end
         end
     end
 
-    if journal.transmitModData then journal:transmitModData() end
+    -- sync item + world
+    if journal.transmitModData then
+        journal:transmitModData()
+    end
     ModData.transmit(WORLD_KEY)
 
     local name = playerObj.getDisplayName and (playerObj:getDisplayName() or "Player") or "Player"
@@ -87,11 +97,13 @@ local function getJSJForJournal(journal)
     if not journal then return nil, nil, nil end
     local jid = tostring(journal:getID())
 
+    -- 1) item
     local mdItem = journal:getModData()
     if mdItem and mdItem.JSJ then
         return mdItem.JSJ, jid, "item"
     end
 
+    -- 2) world
     local worldStore = getWorldStore()
     local entry = worldStore[jid]
     if entry then
@@ -113,6 +125,7 @@ local function readSkillsFromJournal(playerObj, journal)
         return
     end
 
+    -- guard: malformed data
     if type(jsjRoot.skills) ~= "table" then
         print("[JSJ] saved data has no skills table (source=" .. tostring(source) .. ")")
         return
@@ -133,6 +146,7 @@ local function readSkillsFromJournal(playerObj, journal)
     for perkName, savedXP in pairs(jsjRoot.skills) do
         local perkEnum = Perks[perkName]
         if perkEnum then
+            -- preferred: exact set
             if xp.getXP and xp.setXP then
                 local currentXP = xp:getXP(perkEnum)
                 if savedXP > currentXP then
@@ -140,11 +154,13 @@ local function readSkillsFromJournal(playerObj, journal)
                     appliedAny = true
                     print(string.format("[JSJ] applied %s -> %.2f (setXP, from %s)", perkName, savedXP, source))
                 end
+
+            -- fallback: MP-safe AddXP, once per perk
             else
-                -- MP-safe fallback path
                 if not jsjRoot.fallbackApplied[perkName] then
                     if xp.AddXP then
-                        xp:AddXP(perkEnum, savedXP, false, true, true) -- <-- MP-safe flags
+                        -- MP-friendly flags: (perk, amount, callLua=false, doXpBoost=true, remote=true)
+                        xp:AddXP(perkEnum, savedXP, false, true, true)
                         jsjRoot.fallbackApplied[perkName] = true
                         appliedAny = true
                         changedJSJ = true
@@ -159,9 +175,24 @@ local function readSkillsFromJournal(playerObj, journal)
         end
     end
 
-    if changedJSJ then ModData.transmit(WORLD_KEY) end
-    if journal.transmitModData then journal:transmitModData() end
-    if appliedAny and playerObj.syncXp then playerObj:syncXp() end
+    -- if we touched the world copy (set fallback flags), push it
+    if changedJSJ then
+        ModData.transmit(WORLD_KEY)
+    end
+
+    -- also push item copy
+    if journal.transmitModData then
+        journal:transmitModData()
+    end
+
+    -- force XP to update on client
+    if appliedAny then
+        if playerObj.sendObjectChange then
+            playerObj:sendObjectChange("xp")
+        elseif playerObj.syncXp then
+            playerObj:syncXp()
+        end
+    end
 
     local name = playerObj.getDisplayName and (playerObj:getDisplayName() or "Player") or "Player"
     print("[JSJ] " .. name .. " restored skills from journal (" .. tostring(jid) .. ") from " .. (source or "unknown"))
@@ -172,6 +203,7 @@ end
 ----------------------------------------------------------------
 local function onClientCommand(module, command, playerObj, args)
     if module ~= "JimsSkillJournal" then return end
+
     playerObj = resolvePlayer(playerObj, args)
     if not playerObj then
         print("[JSJ] could not resolve player for command:", command)
