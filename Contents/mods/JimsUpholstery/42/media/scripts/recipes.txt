@@ -1,5 +1,9 @@
-module Base
+module JimsStuff
 {
+    imports
+    {
+        Base
+    }
     craftRecipe RagsToThread_Spinning
     {
         timedAction = Sew,
@@ -29,7 +33,7 @@ module Base
         inputs
         {
             item 1 [Base.RippedSheets],
-            item 1 [Base.Jim_PortableSewingMachine] mode:keep,
+            item 1 [JimsStuff.Jim_PortableSewingMachine] mode:keep,
         }
         outputs
         {
@@ -48,7 +52,7 @@ module Base
         {
             item 3 [Base.RippedSheets],
             item 1 [Base.Thread],
-            item 1 [Base.Jim_PortableSewingMachine] mode:keep,
+            item 1 [JimsStuff.Jim_PortableSewingMachine] mode:keep,
         }
         outputs
         {
@@ -70,7 +74,7 @@ module Base
 
         outputs
         {
-            item 1 Base.Jim_PortableSewingMachine,
+            item 1 JimsStuff.Jim_PortableSewingMachine,
         }
         OnCreate = Jim_MoodImprove,
     }    
